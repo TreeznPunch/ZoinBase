@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QuantumTrade Pro</title>
+
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+
+body{
+background:#0b0f19;
+color:white;
+font-family:Arial;
+margin:0;
+}
+
+header{
+padding:15px;
+background:#111827;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+header input{
+padding:8px;
+width:150px;
+}
+
+.container{
+display:grid;
+grid-template-columns:3fr 1fr;
+height:90vh;
+}
+
+#chart{
+height:100%;
+}
+
+.sidebar{
+background:#111827;
+padding:15px;
+overflow:auto;
+}
+
+button{
+background:#2563eb;
+border:none;
+padding:10px;
+margin:4px;
+color:white;
+cursor:pointer;
+border-radius:5px;
+}
+
+button:hover{
+background:#3b82f6;
+}
+
+.panel{
+margin-bottom:25px;
+}
+
+.tradeLog{
+height:150px;
+overflow:auto;
+background:#0f172a;
+padding:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<h2>QuantumTrade Pro</h2>
+
+<div>
+<input id="ticker" placeholder="Ticker (AAPL)">
+<button onclick="loadTicker()">Load</button>
+</div>
+
+<div>
+<button onclick="setTF('1m')">1m</button>
+<button onclick="setTF('5m')">5m</button>
+<button onclick="setTF('1h')">1h</button>
+<button onclick="setTF('1d')">1d</button>
+</div>
+
+</header>
+
+<div class="container">
+
+<div id="chart"></div>
+
+<div class="sidebar">
+
+<div class="panel">
+
+<h3>AI Signal</h3>
+<button onclick="generateSignal()">Analyze Market</button>
+<p id="signal">Waiting...</p>
+
+</div>
+
+<div class="panel">
+
+<h3>Paper Trade</h3>
+
+<button onclick="buy()">Buy</button>
+<button onclick="sell()">Sell</button>
+
+<p>Position: <span id="position">0</span></p>
+<p>Cash: $<span id="cash">10000</span></p>
+
+</div>
+
+<div class="panel">
+
+<h3>Alerts</h3>
+
+<input id="alertPrice" placeholder="Price">
+
+<button onclick="setAlert()">Set Alert</button>
+
+<p id="alertStatus"></p>
+
+</div>
+
+<div class="panel">
+
+<h3>Trade Log</h3>
+
+<div class="tradeLog" id="log"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let cash = 10000
+let position = 0
+let currentPrice = 100
+let alertPrice = null
+
+const chart = LightweightCharts.createChart(document.getElementById("chart"),{
+layout:{
+background:{color:"#0b0f19"},
+textColor:"#DDD"
+},
+grid:{
+vertLines:{color:"#1f2937"},
+horzLines:{color:"#1f2937"}
+},
+width:window.innerWidth*0.75,
+height:window.innerHeight*0.85
+})
+
+const candles = chart.addCandlestickSeries()
+
+const smaLine = chart.addLineSeries({color:"orange"})
+
+function generateData(){
+
+let data=[]
+let price=100
+
+for(let i=0;i<200;i++){
+
+let open=price
+let close=open+(Math.random()-0.5)*4
+let high=Math.max(open,close)+Math.random()*2
+let low=Math.min(open,close)-Math.random()*2
+
+data.push({
+time:i,
+open:open,
+high:high,
+low:low,
+close:close
+})
+
+price=close
+}
+
+currentPrice = price
+
+return data
+}
+
+function SMA(data,period){
+
+let sma=[]
+
+for(let i=period;i<data.length;i++){
+
+let sum=0
+
+for(let j=i-period;j<i;j++){
+
+sum+=data[j].close
+
+}
+
+sma.push({
+time:data[i].time,
+value:sum/period
+})
+
+}
+
+return sma
+}
+
+let marketData = generateData()
+
+candles.setData(marketData)
+
+smaLine.setData(SMA(marketData,14))
+
+function setTF(tf){
+
+marketData = generateData()
+
+candles.setData(marketData)
+
+smaLine.setData(SMA(marketData,14))
+
+log("Switched timeframe: "+tf)
+
+}
+
+function loadTicker(){
+
+let ticker=document.getElementById("ticker").value
+
+log("Loaded ticker: "+ticker)
+
+setTF("1d")
+
+}
+
+function generateSignal(){
+
+let r = Math.random()
+
+let signal
+
+if(r>0.66) signal="BUY"
+else if(r<0.33) signal="SELL"
+else signal="HOLD"
+
+document.getElementById("signal").innerText=signal
+
+log("AI Signal: "+signal)
+
+}
+
+function buy(){
+
+position++
+
+cash-=currentPrice
+
+updatePortfolio()
+
+log("Bought @ "+currentPrice.toFixed(2))
+
+}
+
+function sell(){
+
+if(position>0){
+
+position--
+
+cash+=currentPrice
+
+updatePortfolio()
+
+log("Sold @ "+currentPrice.toFixed(2))
+
+}
+
+}
+
+function updatePortfolio(){
+
+document.getElementById("position").innerText=position
+document.getElementById("cash").innerText=cash.toFixed(2)
+
+}
+
+function setAlert(){
+
+alertPrice = Number(document.getElementById("alertPrice").value)
+
+document.getElementById("alertStatus").innerText =
+"Alert set at "+alertPrice
+
+}
+
+function log(msg){
+
+let el=document.getElementById("log")
+
+el.innerHTML += msg+"<br>"
+
+el.scrollTop=el.scrollHeight
+
+}
+
+setInterval(()=>{
+
+currentPrice += (Math.random()-0.5)
+
+if(alertPrice && currentPrice>=alertPrice){
+
+alert("Price Alert Triggered!")
+
+alertPrice=null
+
+}
+
+},2000)
+
+</script>
+
+</body>
+</html>
